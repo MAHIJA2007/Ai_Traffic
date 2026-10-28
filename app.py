@@ -113,8 +113,10 @@ def render_profile(junctions: list[str]) -> None:
         st.divider()
         st.markdown("#### Operator profile")
         st.session_state.setdefault("operator_name", "Traffic operator")
+        st.session_state.setdefault("operator_id", "OP-28-01")
         st.session_state.setdefault("operator_region", "Project 28 demo")
         st.text_input("Operator name", key="operator_name")
+        st.text_input("Operator ID", key="operator_id")
         st.text_input("Control room / region", key="operator_region")
         st.selectbox("Primary junction", junctions, key="primary_junction")
         st.caption("Session-only demo profile; no real identity or login service is required.")
@@ -208,7 +210,8 @@ def render_dashboard(data: pd.DataFrame, virtual: list[dict[str, object]], avail
     if virtual:
         fleet = pd.DataFrame(virtual)
         st.dataframe(fleet[["junction", "sensor_status", "vehicles_per_hour", "average_speed_kmh", "road_occupancy_pct",
-                            "temperature_c", "humidity_pct", "rain_probability_pct", "edge_model_status", "cloud_link"]],
+                            "temperature_c", "humidity_pct", "rain_probability_pct", "light_intensity_lux", "water_on_road_pct",
+                            "edge_model_status", "cloud_link"]],
                      use_container_width=True, hide_index=True)
         st.caption(f"Virtual tick {fleet['tick'].max()} · values are reproducible software simulations derived from historical traffic patterns.")
 
@@ -227,13 +230,14 @@ def render_live(data: pd.DataFrame, junctions: list[str], model_ready: bool) -> 
         return
     history = history.sort_values("tick")
     last = history.iloc[-1]
-    metrics = st.columns(6)
+    metrics = st.columns(7)
     metrics[0].metric("Virtual flow", f"{last['vehicles_per_hour']:.0f} veh/h")
     metrics[1].metric("Average speed", f"{last['average_speed_kmh']:.1f} km/h")
     metrics[2].metric("Occupancy", f"{last['road_occupancy_pct']:.1f}%")
     metrics[3].metric("Temperature / RH", f"{last['temperature_c']:.1f} °C / {last['humidity_pct']:.0f}%")
     metrics[4].metric("Rain probability", f"{last['rain_probability_pct']:.0f}%")
     metrics[5].metric("Virtual sensor", str(last["sensor_status"]))
+    metrics[6].metric("Light intensity", f"{last['light_intensity_lux']:,.0f} lux")
     st.plotly_chart(px.line(history, x="recorded_at", y="vehicles_per_hour", markers=True,
                             labels={"recorded_at": "Simulation time", "vehicles_per_hour": "Vehicles per hour"}), use_container_width=True)
     st.plotly_chart(px.line(history, x="recorded_at", y=["average_speed_kmh", "road_occupancy_pct"], markers=True,
@@ -324,6 +328,10 @@ def render_incidents(data: pd.DataFrame, junctions: list[str]) -> None:
                 label = "Critical" if ratio >= 100 else ("Elevated" if ratio >= 80 else "Within recent range")
                 st.metric("Model-based congestion risk", label, f"{ratio:.1f}% of historical 95th percentile")
                 st.caption(f"Predicted flow: {prediction['predicted_vehicles']:.0f} veh/h · Forecast time: {prediction['forecast_for']}. This is a threshold score, not a calibrated probability.")
+                recommendation = ("Critical: review the simulated signal phase and incident/diversion plan immediately." if label == "Critical" else
+                                  "Elevated: prepare a timing adjustment and watch the next virtual sensor tick." if label == "Elevated" else
+                                  "Within recent range: keep the automatic plan and continue monitoring.")
+                st.info(f"Recommended action: {recommendation}")
             except Exception as error:
                 st.warning(f"Risk inference unavailable: {error}")
         with st.form("incident_form"):
