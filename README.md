@@ -166,7 +166,8 @@ python -m traffic_mlops.cli train --data path\to\traffic.csv
 
 ## Team
 
-**Project title:** AI-Based Traffic Prediction System with MLOps  
+**Project title:** AI-Based Traffic Prediction System with MLOps
+
 **Project number:** 28
 
 | Student ID | Name |

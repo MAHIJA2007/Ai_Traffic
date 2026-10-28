@@ -170,13 +170,17 @@ def render_dashboard(data: pd.DataFrame, virtual: list[dict[str, object]], avail
     if hours_old > 24:
         st.info(f"Training history spans through {pd.Timestamp(newest['timestamp']).strftime('%d %b %Y %H:%M')}; the live-style panels below use reproducible virtual telemetry.")
     head = virtual[0] if virtual else {}
-    top = st.columns(6)
+    critical = any(row["sensor_status"] != "online" or row["road_occupancy_pct"] >= 82 for row in virtual)
+    warning = any(row["road_occupancy_pct"] >= 68 or row["cloud_link"] != "online" for row in virtual)
+    network_health = "Critical" if critical else ("Warning" if warning else "Good")
+    top = st.columns(7)
     top[0].metric("Junctions", f"{data['junction'].nunique():,}")
     top[1].metric("Observations", f"{len(data):,}")
     top[2].metric("Simulated traffic flow", f"{head.get('vehicles_per_hour', 0):.0f} veh/h" if head else "—")
     top[3].metric("Simulated occupancy", f"{head.get('road_occupancy_pct', 0):.1f}%" if head else "—")
     top[4].metric("Simulated weather", f"{head.get('temperature_c', 0):.1f} °C · {head.get('humidity_pct', 0):.0f}% RH" if head else "—")
     top[5].metric("Champion model", f"v{version}" if available else "Not trained")
+    top[6].metric("Overall network health", network_health)
 
     left, right = st.columns([1.65, 1])
     with left:
