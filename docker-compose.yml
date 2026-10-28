@@ -1,0 +1,44 @@
+services:
+  mlflow:
+    build: .
+    command: ["mlflow", "server", "--backend-store-uri", "sqlite:////mlflow/mlflow.db", "--default-artifact-root", "/mlflow/artifacts", "--host", "0.0.0.0", "--port", "5000"]
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_data:/mlflow
+
+  dashboard:
+    build: .
+    command: ["streamlit", "run", "app.py", "--server.address=0.0.0.0"]
+    ports:
+      - "8501:8501"
+    environment:
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      MLFLOW_TRACKING_USERNAME: ${MLFLOW_TRACKING_USERNAME:-}
+      MLFLOW_TRACKING_PASSWORD: ${MLFLOW_TRACKING_PASSWORD:-}
+      TRAFFIC_APP_DB: /app/state/traffic_app.db
+    volumes:
+      - ./data:/app/data
+      - app_data:/app/state
+    depends_on:
+      - mlflow
+
+  api:
+    build: .
+    command: ["uvicorn", "traffic_mlops.api:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    environment:
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      MLFLOW_TRACKING_USERNAME: ${MLFLOW_TRACKING_USERNAME:-}
+      MLFLOW_TRACKING_PASSWORD: ${MLFLOW_TRACKING_PASSWORD:-}
+      TRAFFIC_APP_DB: /app/state/traffic_app.db
+    volumes:
+      - ./data:/app/data
+      - app_data:/app/state
+    depends_on:
+      - mlflow
+
+volumes:
+  mlflow_data:
+  app_data:
