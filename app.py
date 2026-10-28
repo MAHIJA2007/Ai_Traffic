@@ -425,9 +425,9 @@ def render_simulation_lab(data: pd.DataFrame, model_ready: bool) -> None:
     with st.container(border=True):
         left, right = st.columns(2)
         with left:
-        if "sim_cloud_online" not in st.session_state:
-            st.session_state["sim_cloud_online"] = True
-        st.toggle("Simulated cloud link online", key="sim_cloud_online",
+            if "sim_cloud_online" not in st.session_state:
+                st.session_state["sim_cloud_online"] = True
+            st.toggle("Simulated cloud link online", key="sim_cloud_online",
                       help="Turn off to test local edge inference and offline-to-cloud alerts.")
         with right:
             st.selectbox("Inject virtual sensor fault", ["None"] + sorted(data["junction"].unique().tolist()), key="sim_fault_selector")
