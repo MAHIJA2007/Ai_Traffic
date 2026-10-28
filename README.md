@@ -40,7 +40,7 @@ Dashboard: [localhost:8501](http://localhost:8501) · API: [localhost:8000/docs]
 
 ## Interactive software simulation
 
-Every feature runs in software; no roadside hardware is needed. Operator identity is a session profile rather than an authentication service. The **Simulation lab** generates reproducible virtual sensors, temperature/humidity/rain/light conditions, 5G-style link telemetry, device status, alert events, and online/offline scenarios from the historical junction profiles. Use **Generate next virtual minute** to advance the persisted simulator. Inject a sensor fault or switch the simulated cloud link offline to explore failover.
+Every feature runs in software; no roadside hardware is needed. Operator name, ID, region, and primary junction are session profile fields rather than an authentication service. The **Simulation lab** generates reproducible virtual sensors, temperature/humidity/rain/light conditions, 5G-style link telemetry, device status, alert events, and online/offline scenarios from the historical junction profiles. Use **Generate next virtual minute** to advance the persisted simulator. Inject a sensor fault or switch the simulated cloud link offline to explore failover.
 
 - **Dashboard and virtual sensors:** per-junction traffic flow, speed, occupancy, environmental readings, sensor health, time-series charts, and alert state.
 - **Forecast and virtual signal control:** MLflow champion predicts next-hour traffic. Automatic green-phase suggestions or manual settings update the simulator and are recorded in SQLite; no real controller is contacted.
