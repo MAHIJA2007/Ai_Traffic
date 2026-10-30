@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run tests
+        run: python -m pytest -q
+      - name: Compile application modules
+        run: python -m compileall -q app.py traffic_mlops scripts
+      - name: Train a smoke-test model
+        env:
+          MLFLOW_TRACKING_URI: sqlite:///ci_mlflow.db
+          TRAFFIC_EDGE_CACHE: ${{ runner.temp }}/edge_cache
+        run: |
+          python -m traffic_mlops.cli generate-data --data ci_traffic.csv
+          python -m traffic_mlops.cli train --data ci_traffic.csv
+          python -m traffic_mlops.cli monitor --data ci_traffic.csv

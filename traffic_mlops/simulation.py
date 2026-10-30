@@ -32,13 +32,17 @@ def generate_virtual_tick(
         reference = hour_profile.tail(24) if not hour_profile.empty else history.tail(24)
         base_flow = float(reference["vehicles"].median())
         flow = max(0.0, float(rng.normal(base_flow, max(base_flow * 0.06, 2))))
-        capacity = max(float(history["vehicles"].quantile(.98)), 1.0)
+        capacity = max(float(history["vehicles"].quantile(.98)) * 1.45, 1.0)
         occupancy = float(np.clip(flow / capacity * 100, 0, 100))
         speed = float(np.clip(72 - occupancy * .53 + rng.normal(0, 3), 5, 72))
-        temperature = float(np.clip(history["temperature_c"].tail(48).mean() + rng.normal(0, 2.4), -15, 46))
+        diurnal = 4.2 * np.sin((now.hour - 9) / 24 * 2 * np.pi)
+        temperature = float(np.clip(history["temperature_c"].tail(48).mean() + diurnal + rng.normal(0, 1.6), -15, 46))
         humidity = float(np.clip(rng.normal(58, 15), 18, 98))
         rain_probability = float(np.clip(rng.beta(1.7, 4.5) * 100, 0, 100))
         light = float(np.clip((22000 if 6 <= now.hour <= 18 else 120) * rng.uniform(.65, 1.3), 0, 100000))
+        water = float(np.clip(rain_probability * .72 + rng.normal(0, 8), 0, 100))
+        wind = float(np.clip(rng.normal(18, 9), 0, 90))
+        visibility = float(np.clip(14 - rain_probability * .07 + rng.normal(0, 1.1), 0.4, 16))
         sensor_online = str(junction) != failed_junction
         signal_dbm = int(rng.integers(-105, -54)) if cloud_online else int(rng.integers(-120, -108))
         signal_green = int(np.clip(20 + occupancy * .42, 20, 70))
@@ -48,7 +52,8 @@ def generate_virtual_tick(
             "vehicles_per_hour": round(flow, 1), "average_speed_kmh": round(speed, 1),
             "road_occupancy_pct": round(occupancy, 1), "temperature_c": round(temperature, 1),
             "humidity_pct": round(humidity, 1), "rain_probability_pct": round(rain_probability, 1),
-            "light_intensity_lux": round(light, 0), "water_on_road_pct": round(float(np.clip(rain_probability * .72 + rng.normal(0, 8), 0, 100)), 1),
+            "light_intensity_lux": round(light, 0), "water_on_road_pct": round(water, 1),
+            "wind_speed_kmph": round(wind, 1), "visibility_km": round(visibility, 1),
             "signal_green_seconds_auto": signal_green,
             "edge_model_status": "champion ready" if model_ready else "model not trained",
             "edge_inference_latency_ms": round(float(rng.uniform(8, 55)), 1) if model_ready else None,
@@ -62,14 +67,18 @@ def generate_virtual_tick(
         readings.append(reading)
         if not sensor_online:
             alerts.append({"tick": tick, "created_at": timestamp, "junction": str(junction), "severity": "critical", "alert": "Virtual sensor offline (fault injection)"})
-        if occupancy >= 82:
+        if occupancy >= 78:
             alerts.append({"tick": tick, "created_at": timestamp, "junction": str(junction), "severity": "critical", "alert": f"Congestion risk: simulated occupancy {occupancy:.0f}%"})
-        elif occupancy >= 68:
+        elif occupancy >= 62:
             alerts.append({"tick": tick, "created_at": timestamp, "junction": str(junction), "severity": "warning", "alert": f"Elevated traffic: simulated occupancy {occupancy:.0f}%"})
         if temperature >= 38:
             alerts.append({"tick": tick, "created_at": timestamp, "junction": str(junction), "severity": "warning", "alert": f"High simulated road temperature: {temperature:.1f} °C"})
         if rain_probability >= 80:
             alerts.append({"tick": tick, "created_at": timestamp, "junction": str(junction), "severity": "warning", "alert": f"Weather hazard risk: simulated rain probability {rain_probability:.0f}%"})
+        if water >= 50 and occupancy >= 60:
+            alerts.append({"tick": tick, "created_at": timestamp, "junction": str(junction), "severity": "warning", "alert": f"Wet-road incident risk: simulated water cover {water:.0f}%"})
+        if wind >= 55:
+            alerts.append({"tick": tick, "created_at": timestamp, "junction": str(junction), "severity": "warning", "alert": f"High wind advisory: {wind:.0f} km/h simulated gusts"})
         if not cloud_online:
             alerts.append({"tick": tick, "created_at": timestamp, "junction": str(junction), "severity": "info", "alert": "Cloud link down; local edge mode remains available"})
 

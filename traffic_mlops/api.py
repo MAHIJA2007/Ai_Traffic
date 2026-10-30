@@ -10,8 +10,8 @@ from traffic_mlops.config import DEFAULT_DATASET, MODEL_NAME, configure_mlflow
 from traffic_mlops.data import generate_demo_data
 from traffic_mlops.monitoring import monitor_data
 from traffic_mlops.history import recent_predictions, recent_virtual_alerts, recent_virtual_readings, save_prediction, save_virtual_tick
-from traffic_mlops.prediction import predict_next_hour
-from traffic_mlops.training import train_model
+from traffic_mlops.prediction import predict_horizon, predict_next_hour
+from traffic_mlops.training import champion_summary, train_model
 from traffic_mlops.simulation import generate_virtual_tick
 
 
@@ -33,6 +33,12 @@ class PredictionRequest(BaseModel):
 class SimulationTickRequest(BaseModel):
     cloud_online: bool = True
     failed_junction: str | None = None
+
+
+class HorizonRequest(BaseModel):
+    junction: str = Field(min_length=1)
+    hours: int = Field(default=24, ge=1, le=48)
+    offline: bool = False
 
 
 def read_dataset() -> pd.DataFrame:
@@ -82,6 +88,28 @@ def train() -> dict[str, object]:
         return train_model(read_dataset())
     except (ValueError, OSError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@app.get("/model")
+def model_info() -> dict[str, object]:
+    try:
+        summary = champion_summary()
+    except Exception as error:
+        raise HTTPException(status_code=503, detail="The model registry is unavailable.") from error
+    return {"ready": summary is not None, "champion": summary}
+
+
+@app.post("/forecast/horizon")
+def forecast_horizon(request: HorizonRequest) -> dict[str, object]:
+    """Recursive next-N-hour outlook for one junction."""
+    try:
+        return predict_horizon(
+            read_dataset(), request.junction, request.hours, offline=request.offline
+        )
+    except (ValueError, OSError) as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(status_code=503, detail="No champion model is available. Train a model first.") from error
 
 
 @app.get("/monitor")

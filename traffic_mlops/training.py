@@ -49,9 +49,10 @@ def train_model(source: pd.DataFrame, experiment_name: str = EXPERIMENT_NAME) ->
             (
                 "regressor",
                 RandomForestRegressor(
-                    n_estimators=160,
-                    min_samples_leaf=2,
-                    max_features=0.9,
+                    n_estimators=120,
+                    min_samples_leaf=3,
+                    max_features=0.6,
+                    max_depth=20,
                     random_state=42,
                     n_jobs=-1,
                 ),
@@ -83,8 +84,10 @@ def train_model(source: pd.DataFrame, experiment_name: str = EXPERIMENT_NAME) ->
         mlflow.log_params(
             {
                 "model_type": "RandomForestRegressor",
-                "n_estimators": 160,
-                "min_samples_leaf": 2,
+                "n_estimators": 120,
+                "min_samples_leaf": 3,
+                "max_features": 0.6,
+                "max_depth": 20,
                 "feature_count": len(FEATURE_COLUMNS),
                 "junction_count": int(features["junction"].nunique()),
                 "split": "chronological_80_20",
@@ -148,4 +151,32 @@ def train_model(source: pd.DataFrame, experiment_name: str = EXPERIMENT_NAME) ->
         "metrics": metrics,
         "training_rows": len(train_rows),
         "test_rows": len(test_rows),
+    }
+
+
+def champion_summary() -> dict[str, object] | None:
+    """Return the promoted champion's registry metadata and holdout metrics."""
+    configure_mlflow()
+    client = MlflowClient()
+    try:
+        version = client.get_model_version_by_alias(MODEL_NAME, "champion")
+    except Exception:
+        return None
+    metrics: dict[str, float] = {}
+    tags: dict[str, str] = {}
+    try:
+        run = client.get_run(version.run_id)
+        metrics = run.data.metrics
+        tags = run.data.tags
+    except Exception:
+        pass
+    return {
+        "version": str(version.version),
+        "run_id": version.run_id,
+        "rmse": metrics.get("rmse"),
+        "mae": metrics.get("mae"),
+        "r2": metrics.get("r2"),
+        "dataset": tags.get("dataset"),
+        "created_ms": getattr(version, "creation_timestamp", None),
+        "status": getattr(version, "status", "READY"),
     }

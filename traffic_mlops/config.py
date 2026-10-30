@@ -9,6 +9,7 @@ MODEL_NAME = "TrafficFlowPredictor"
 EXPERIMENT_NAME = "traffic-prediction"
 MLFLOW_DB = PROJECT_ROOT / "mlflow_project28.db"
 ARTIFACT_DIR = PROJECT_ROOT / "mlartifacts" / "project28"
+EDGE_CACHE_DIR = Path(os.getenv("TRAFFIC_EDGE_CACHE") or PROJECT_ROOT / "edge_cache")
 
 
 def configure_mlflow() -> str:
